@@ -23,7 +23,7 @@ runs:
       run: |
         COMMITS=$(jq '.pull_request.commits // .commits | length' ${GITHUB_EVENT_PATH})
         echo "Commits found: $COMMITS"
-        MODIFIED=$(git diff-index HEAD~$COMMITS ${{ inputs.path }} | wc -l | awk '{print $1}')
+        MODIFIED=$(git diff-index HEAD~$COMMITS -- ${{ inputs.path }} | wc -l | awk '{print $1}')
         echo "Modified files: $MODIFIED"
-        echo "$(git diff-index --stat HEAD~$COMMITS ${{ inputs.path }})"
+        echo "$(git diff-index --stat HEAD~$COMMITS -- ${{ inputs.path }})"
         echo "modified=$MODIFIED" >> $GITHUB_OUTPUT
