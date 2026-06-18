@@ -21,9 +21,18 @@ runs:
     - id: modified
       shell: bash
       run: |
-        COMMITS=$(jq '.pull_request.commits // .commits | length' ${GITHUB_EVENT_PATH})
-        echo "Commits found: $COMMITS"
-        MODIFIED=$(git diff-index HEAD~$COMMITS -- ${{ inputs.path }} | wc -l | awk '{print $1}')
+        # Diff base: PR base sha on pull_request, the pre-push sha on push. The old
+        # HEAD~$COMMITS was wrong for merge commits — the pushed commits live on the
+        # merge's second parent, so they aren't on HEAD's first-parent chain and
+        # HEAD~N points past the start of history (`fatal: bad revision`).
+        BASE=$(jq -r '.pull_request.base.sha // .before // ""' "${GITHUB_EVENT_PATH}")
+        if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+          echo "No diff base (new branch / initial push) — treating path as modified"
+          MODIFIED=1
+        else
+          echo "Diff base: $BASE"
+          MODIFIED=$(git diff --name-only "$BASE" HEAD -- ${{ inputs.path }} | wc -l | awk '{print $1}')
+          git diff --stat "$BASE" HEAD -- ${{ inputs.path }}
+        fi
         echo "Modified files: $MODIFIED"
-        echo "$(git diff-index --stat HEAD~$COMMITS -- ${{ inputs.path }})"
         echo "modified=$MODIFIED" >> $GITHUB_OUTPUT
